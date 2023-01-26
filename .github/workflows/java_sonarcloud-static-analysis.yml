@@ -1,0 +1,64 @@
+name: Analyse Statique avec SonarCloud
+on:
+  workflow_call:
+    inputs:
+      # Paramètres optionnels pour la configuration du runner
+      runner-distro:
+        default: "ubuntu-latest"
+        description: "Distribution linux du runner à utiliser"
+        type: string
+      java-sdk-version:
+        default: "19"
+        description: "Version du SDK Java à utiliser"
+        type: string
+      java-sdk-distro:
+        default: "temurin"
+        description: "Distribution du SDK Java à utiliser"
+        type: string
+
+    # Secrets (peuvent être passé par héritage)
+    secrets:
+      # Token Sonar Cloud
+      SONAR_TOKEN:
+        required: true
+        # Sonar Project Key
+      SONAR_PROJECT_KEY:
+        required: true
+
+jobs:
+  build:
+    name: Build et Test
+    runs-on: ${{ inputs.runner-distro }}
+    steps:
+      # ------------
+      - name: Git checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      # ------------
+      - name: Installation du JDK  ${{ inputs.java-sdk-version }} (${{ inputs.java-sdk-distro }})
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ inputs.java-sdk-version }}
+          distribution: ${{ inputs.java-sdk-distro }}
+          cache: maven
+      # ------------
+      - name: Mise en Cache des packages SonarCloud
+        uses: actions/cache@v1
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      # ------------
+      - name: Mise en cache des packages Maven
+        uses: actions/cache@v1
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      # ------------
+      - name: Build et Analyse Statique
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Requis pour récupérer les informations de la PR (le cas échéant)
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn clean package sonar:sonar -Pcoverage -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}

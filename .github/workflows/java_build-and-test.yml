@@ -1,0 +1,37 @@
+name: Build et Test d'une Application Java
+on:
+  workflow_call:
+    inputs:
+      # Paramètres optionnels pour la configuration du runner
+      runner-distro:
+        default: "ubuntu-latest"
+        description: "Distribution linux du runner à utiliser"
+        type: string
+      java-sdk-version:
+        default: "19"
+        description: "Version du SDK Java à utiliser"
+        type: string
+      java-sdk-distro:
+        default: "temurin"
+        description: "Distribution du SDK Java à utiliser"
+        type: string
+
+jobs:
+  build-and-test:
+    name: Build et Test
+    runs-on: ${{ inputs.runner-distro }}
+
+    steps:
+      # ------------
+      - name: Git checkout
+        uses: actions/checkout@v3
+      # ------------
+      - name: Installation du JDK  ${{ inputs.java-sdk-version }} (${{ inputs.java-sdk-distro }})
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ inputs.java-sdk-version }}
+          distribution: ${{ inputs.java-sdk-distro }}
+          cache: maven
+      # ------------
+      - name: Build avec Maven
+        run: mvn --batch-mode --update-snapshots package
